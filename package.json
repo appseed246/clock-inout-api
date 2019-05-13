@@ -1,0 +1,11 @@
+{
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.25",
+    "@types/puppeteer": "^1.12.4",
+    "eslint": "^5.16.0",
+    "prettier": "^1.17.0"
+  },
+  "dependencies": {
+    "puppeteer": "^1.15.0"
+  }
+}
