@@ -6,6 +6,7 @@
     "prettier": "^1.17.0"
   },
   "dependencies": {
-    "puppeteer": "^1.15.0"
+    "chrome-aws-lambda": "^1.16.1",
+    "puppeteer-core": "^1.16.0"
   }
 }
