@@ -1,12 +1,11 @@
 {
   "devDependencies": {
     "@types/aws-lambda": "^8.10.25",
-    "@types/puppeteer": "^1.12.4",
-    "eslint": "^5.16.0",
-    "prettier": "^1.17.0"
-  },
-  "dependencies": {
+    "@types/puppeteer-core": "^1.9.0",
     "chrome-aws-lambda": "^1.16.1",
+    "eslint": "^5.16.0",
+    "iltorb": "^2.4.3",
+    "prettier": "^1.17.0",
     "puppeteer-core": "^1.16.0"
   }
 }
