@@ -1,7 +1,10 @@
 "use strict";
-const { sample } = require("./sample");
+import { Handler } from "aws-lambda";
+import "source-map-support/register";
+import "reflect-metadata";
+import { sample } from "./sample";
 
-module.exports.hello = async event => {
+export const hello: Handler = async () => {
   const result = await sample();
   return {
     statusCode: 200,

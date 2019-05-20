@@ -1,13 +1,13 @@
-const chromium = require("chrome-aws-lambda");
-const pupetteer = require("puppeteer-core");
+import * as chromium from "chrome-aws-lambda";
+import * as puppeteer from "puppeteer-core";
 
 // googleの検索結果のタイトルをすべて取得する
-const sample = async () => {
+export const sample = async () => {
   let browser;
   let result = [];
   try {
     console.log("------------ start ------------");
-    browser = await pupetteer.launch({
+    browser = await puppeteer.launch({
       // headless: false,
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
@@ -44,5 +44,3 @@ const sample = async () => {
   // console.log(result);
   return result;
 };
-
-module.exports.sample = sample;
