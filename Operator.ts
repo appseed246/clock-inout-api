@@ -1,9 +1,31 @@
 import { Browser, Page } from "puppeteer-core";
 
+/**
+ * ネットde顧問のコンテンツ
+ * + paycheck: ネットde明細
+ * + attendance: ネットde就業
+ * + regulation: ネットde規則
+ * + schedule: ネットdeスケジュール
+ */
+type Content = "paycheck" | "attendance" | "regulation" | "schedule";
+
 export class Operator {
+  // ログインページのURL
   private readonly LOGIN_PAGE_URL = "https://www1.shalom-house.jp/komon/";
+  // Contentの文字列に対応するボタンのID
+  private readonly selectors: { [k in Content]: string } = {
+    paycheck: "#ctl00_ContentPlaceHolder1_imgBtnMeisai",
+    attendance: "#ctl00_ContentPlaceHolder1_imgBtnSyuugyou",
+    regulation: "#ctl00_ContentPlaceHolder1_imgBtnKisoku",
+    schedule: "#ctl00_ContentPlaceHolder1_imgBtnGrp"
+  };
+  // ブラウザの操作を行うオブジェクト
+  // puppeteerによって生成
   private page: Page;
 
+  // アクセス失敗時のリトライカウント
+  private retryCount: number = 0;
+  private readonly RETRY_LIMIT: number = 3;
   /**
    * コンストラクタ
    */
@@ -17,22 +39,57 @@ export class Operator {
    * @returns {boolean} ログインに成功した場合はtrue, それ以外はfalse
    */
   public async login(userID: string, password: string): Promise<boolean> {
-    this.page = await this.browser.newPage();
-    await this.page.goto(this.LOGIN_PAGE_URL);
+    try {
+      // 新しいページを生成し、ログインページに遷移する
+      this.page = await this.browser.newPage();
+      await this.page.goto(this.LOGIN_PAGE_URL);
 
-    // ID,パスワード入力
-    await this.page.type("#txtID", userID);
-    await this.page.type("#txtPsw", password);
+      // ID,パスワード入力
+      await this.page.type("#txtID", userID);
+      await this.page.type("#txtPsw", password);
 
-    // ログインボタン押下
-    await this.page.click("#btnLogin");
+      // ログインボタン押下
+      await Promise.all([
+        this.page.click("#btnLogin"),
+        this.page.waitForNavigation({
+          timeout: 10000,
+          waitUntil: "networkidle0"
+        })
+      ]);
+    } catch (e) {
+      console.log(e);
+      if (this.retryCount == this.RETRY_LIMIT) {
+        console.log("retry exceeded.");
+        return false;
+      }
+      await this.page.close();
+      await this.page.waitFor(1000);
+      console.log("login retry.");
+      this.retryCount++;
+      await this.login(userID, password);
+    }
+    this.retryCount = 0;
     return true;
   }
   /**
    * 指定したコンテンツにアクセスする
-   * @param {"attendance"} content
+   * @param {Content} content
    */
-  public accessContent(_content: "attendance"): boolean {
+  public async accessContent(content: Content): Promise<boolean> {
+    try {
+      const selector = this.getContentSelector(content);
+      console.log("selector: " + selector);
+      await Promise.all([
+        this.page.click(selector),
+        this.page.waitForNavigation({
+          timeout: 10000,
+          waitUntil: "domcontentloaded"
+        })
+      ]);
+    } catch (e) {
+      console.log(e);
+      return false;
+    }
     return true;
   }
   /**
@@ -46,5 +103,13 @@ export class Operator {
    */
   public clockout(): boolean {
     return true;
+  }
+
+  /**
+   * アクセスするコンテンツに応じたHTMLElementのセレクターを取得する。
+   * @param content アクセスするコンテンツ
+   */
+  private getContentSelector(content: Content): string {
+    return this.selectors[content];
   }
 }

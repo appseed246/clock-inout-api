@@ -10,4 +10,6 @@ import { Operator } from "../Operator";
   });
   const op = new Operator(browser);
   await executeClockin(op, process.argv[2], process.argv[3]);
-})();
+})().then(() => {
+  return;
+});

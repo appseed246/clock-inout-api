@@ -5,7 +5,15 @@ export const executeClockin = async (
   userId: string,
   password: string
 ): Promise<boolean> => {
-  await operator.login(userId, password);
+  if (!(await operator.login(userId, password))) {
+    console.log("login failed.");
+    return false;
+  }
+
+  if (!(await operator.accessContent("attendance"))) {
+    console.log("content select failed.");
+    return false;
+  }
 
   return true;
 };
