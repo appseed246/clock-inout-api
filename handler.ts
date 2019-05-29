@@ -6,7 +6,7 @@ import "source-map-support/register";
 import "reflect-metadata";
 import { sample } from "./sample";
 import { Operator } from "./Operator";
-import { executeClockin } from "./Scenario";
+import { executeClockOut } from "./Scenario";
 
 const userId = process.env.USERID;
 const password = process.env.PASSWORD;
@@ -32,9 +32,9 @@ export const hello: Handler = async () => {
   // return { message: 'Go Serverless v1.0! Your function executed successfully!', event };
 };
 
-export const clockin: Handler = async () => {
+export const clockout: Handler = async () => {
   const operator = await getOperator();
-  const result = executeClockin(operator, userId!, password!);
+  const result = executeClockOut(operator, userId!, password!);
   return {
     statusCode: 200,
     body: JSON.stringify({ result })

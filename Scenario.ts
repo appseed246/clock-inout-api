@@ -1,6 +1,6 @@
 import { Operator } from "./Operator";
 
-export const executeClockin = async (
+export const executeClockOut = async (
   operator: Operator,
   userId: string,
   password: string
@@ -12,6 +12,11 @@ export const executeClockin = async (
 
   if (!(await operator.accessContent("attendance"))) {
     console.log("content select failed.");
+    return false;
+  }
+
+  if (!(await operator.clockout())) {
+    console.log("clockout failed.");
     return false;
   }
 

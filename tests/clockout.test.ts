@@ -1,4 +1,4 @@
-import { executeClockin } from "../Scenario";
+import { executeClockOut } from "../Scenario";
 import * as puppeteer from "puppeteer";
 import { Operator } from "../Operator";
 
@@ -9,7 +9,7 @@ import { Operator } from "../Operator";
     args: ["--no-sandbox", "--disable-setuid-sandbox"]
   });
   const op = new Operator(browser);
-  await executeClockin(op, process.argv[2], process.argv[3]);
+  await executeClockOut(op, process.argv[2], process.argv[3]);
 })().then(() => {
   return;
 });

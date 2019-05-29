@@ -61,8 +61,8 @@ functions:
     handler: handler.hello
     layers:
       - { Ref: ChromiumLambdaLayer }
-  clockin:
-    handler: handler.clockin
+  clockout:
+    handler: handler.clockout
     layers:
       - { Ref: ChromiumLambdaLayer }
 

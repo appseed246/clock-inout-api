@@ -19,6 +19,11 @@ export class Operator {
     regulation: "#ctl00_ContentPlaceHolder1_imgBtnKisoku",
     schedule: "#ctl00_ContentPlaceHolder1_imgBtnGrp"
   };
+
+  private readonly attendanceSelector: { [key: string]: string } = {
+    clockin: "#ctl00_ContentPlaceHolder1_ibtnIn4",
+    clockout: "#ctl00_ContentPlaceHolder1_ibtnOut4"
+  };
   // ブラウザの操作を行うオブジェクト
   // puppeteerによって生成
   private page: Page;
@@ -78,7 +83,6 @@ export class Operator {
   public async accessContent(content: Content): Promise<boolean> {
     try {
       const selector = this.getContentSelector(content);
-      console.log("selector: " + selector);
       await Promise.all([
         this.page.click(selector),
         this.page.waitForNavigation({
@@ -95,13 +99,37 @@ export class Operator {
   /**
    * 出社ボタンを押下する。
    */
-  public clockin(): boolean {
-    return true;
+  public async clockin(): Promise<boolean> {
+    return this.pushAttendanceButton("clockin");
   }
   /**
    * 退社ボタンを押下する。
    */
-  public clockout(): boolean {
+  public async clockout(): Promise<boolean> {
+    return this.pushAttendanceButton("clockout");
+  }
+
+  private async pushAttendanceButton(command: "clockin" | "clockout") {
+    try {
+      const selector = this.getAttendanceSelector(command);
+      const button = await this.page.$(selector);
+      if (button == null) {
+        console.log(`"${selector}" does not exist.`);
+        return false;
+      }
+
+      // ボタン押下
+      await Promise.all([
+        button.click(),
+        this.page.waitForNavigation({
+          timeout: 10000,
+          waitUntil: "networkidle0"
+        })
+      ]);
+    } catch (e) {
+      console.log(e);
+      return false;
+    }
     return true;
   }
 
@@ -111,5 +139,13 @@ export class Operator {
    */
   private getContentSelector(content: Content): string {
     return this.selectors[content];
+  }
+
+  /**
+   * 出社・退社ボタンのセレクターを取得する。
+   * @param command 出社 or 退社
+   */
+  private getAttendanceSelector(command: "clockin" | "clockout") {
+    return this.attendanceSelector[command];
   }
 }
