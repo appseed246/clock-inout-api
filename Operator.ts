@@ -1,4 +1,4 @@
-import { Browser, Page } from "puppeteer-core";
+import { Browser, Page, NavigationOptions } from "puppeteer-core";
 
 /**
  * ネットde顧問のコンテンツ
@@ -8,6 +8,19 @@ import { Browser, Page } from "puppeteer-core";
  * + schedule: ネットdeスケジュール
  */
 type Content = "paycheck" | "attendance" | "regulation" | "schedule";
+
+/**
+ * 勤怠画面で実行可能なコマンド
+ * + clockin: 出勤ボタン押下
+ * + clockout: 退勤ボタン押下
+ */
+type AttendanceCommand = "clockin" | "clockout";
+
+interface RetryOption {
+  retryLimit?: number;
+  waitMilliSecond?: number;
+  pageClose?: boolean;
+}
 
 export class Operator {
   // ログインページのURL
@@ -28,9 +41,6 @@ export class Operator {
   // puppeteerによって生成
   private page: Page;
 
-  // アクセス失敗時のリトライカウント
-  private retryCount: number = 0;
-  private readonly RETRY_LIMIT: number = 3;
   /**
    * コンストラクタ
    */
@@ -44,37 +54,12 @@ export class Operator {
    * @returns {boolean} ログインに成功した場合はtrue, それ以外はfalse
    */
   public async login(userID: string, password: string): Promise<boolean> {
-    try {
-      // 新しいページを生成し、ログインページに遷移する
-      this.page = await this.browser.newPage();
-      await this.page.goto(this.LOGIN_PAGE_URL);
-
-      // ID,パスワード入力
-      await this.page.type("#txtID", userID);
-      await this.page.type("#txtPsw", password);
-
-      // ログインボタン押下
-      await Promise.all([
-        this.page.click("#btnLogin"),
-        this.page.waitForNavigation({
-          timeout: 10000,
-          waitUntil: "networkidle0"
-        })
-      ]);
-    } catch (e) {
-      console.log(e);
-      if (this.retryCount == this.RETRY_LIMIT) {
-        console.log("retry exceeded.");
-        return false;
-      }
-      await this.page.close();
-      await this.page.waitFor(1000);
-      console.log("login retry.");
-      this.retryCount++;
-      await this.login(userID, password);
-    }
-    this.retryCount = 0;
-    return true;
+    return this.doRetry(
+      async () => {
+        await this.doLogin(userID, password);
+      },
+      { pageClose: true }
+    );
   }
   /**
    * 指定したコンテンツにアクセスする
@@ -83,13 +68,10 @@ export class Operator {
   public async accessContent(content: Content): Promise<boolean> {
     try {
       const selector = this.getContentSelector(content);
-      await Promise.all([
-        this.page.click(selector),
-        this.page.waitForNavigation({
-          timeout: 10000,
-          waitUntil: "domcontentloaded"
-        })
-      ]);
+      await this.clickWithWait(selector, {
+        timeout: 10000,
+        waitUntil: "domcontentloaded"
+      });
     } catch (e) {
       console.log(e);
       return false;
@@ -100,7 +82,10 @@ export class Operator {
    * 出社ボタンを押下する。
    */
   public async clockin(): Promise<boolean> {
-    return this.pushAttendanceButton("clockin");
+    if (!(await this.pushAttendanceButton("clockin"))) {
+      return false;
+    }
+    return true;
   }
   /**
    * 退社ボタンを押下する。
@@ -109,28 +94,88 @@ export class Operator {
     return this.pushAttendanceButton("clockout");
   }
 
-  private async pushAttendanceButton(command: "clockin" | "clockout") {
-    try {
-      const selector = this.getAttendanceSelector(command);
-      const button = await this.page.$(selector);
-      if (button == null) {
-        console.log(`"${selector}" does not exist.`);
-        return false;
-      }
+  private async doLogin(userID: string, password: string) {
+    // 新しいページを生成し、ログインページに遷移する
+    this.page = await this.browser.newPage();
+    await this.page.goto(this.LOGIN_PAGE_URL);
 
-      // ボタン押下
-      await Promise.all([
-        button.click(),
-        this.page.waitForNavigation({
-          timeout: 10000,
-          waitUntil: "networkidle0"
-        })
-      ]);
-    } catch (e) {
-      console.log(e);
+    // ID,パスワード入力
+    await this.page.type("#txtID", userID);
+    await this.page.type("#txtPsw", password);
+
+    // ログインボタン押下
+    await this.clickWithWait("#btnLogin", {
+      timeout: 10000,
+      waitUntil: "networkidle0"
+    });
+  }
+
+  /**
+   * 引数で渡された関数を実行する。
+   * fn実行時に例外が発生した場合、fnを再実行する。
+   * @param fn 実行する関数
+   * @param retryLimit リトライ上限回数(デフォルト 3回)
+   * @param waitMilliSecond リトライ前の待機時間(ミリ秒) (デフォルト 1000ms)
+   * @param pageClose 例外発生時にページをクローズするか。(デフォルト false)
+   */
+  private async doRetry(
+    fn: () => Promise<any>,
+    {
+      retryLimit = 3,
+      waitMilliSecond = 1000,
+      pageClose = false
+    }: Partial<RetryOption> = {}
+  ): Promise<boolean> {
+    for (let retryCount = 0; ; retryCount++) {
+      try {
+        await fn();
+        // fn()が正常に実行できた場合
+        return true;
+      } catch (e) {
+        console.log(e);
+        // リトライ試行回数上限到達時
+        if (retryCount == retryLimit) {
+          console.log("retry exceeded.");
+          return false;
+        }
+        if (pageClose) {
+          await this.page.close();
+        }
+        await this.page.waitFor(waitMilliSecond);
+        console.log("login retry.");
+      }
+    }
+  }
+
+  private async pushAttendanceButton(command: AttendanceCommand) {
+    const selector = this.getAttendanceSelector(command);
+    const button = await this.page.$(selector);
+    if (button == null) {
+      console.log(`failed to execute '${command}'`);
       return false;
     }
+
+    // ボタン押下
+    await this.clickWithWait(selector, {
+      timeout: 10000,
+      waitUntil: "networkidle0"
+    });
     return true;
+  }
+
+  /**
+   * 引数に指定したセレクタの要素をクリックしページ遷移を待つ
+   * @param selector 要素のセレクタ文字列
+   * @param option waitForNavigationのオプション
+   */
+  private async clickWithWait(
+    selector: string,
+    option: NavigationOptions | undefined
+  ) {
+    return Promise.all([
+      this.page.click(selector),
+      this.page.waitForNavigation(option)
+    ]);
   }
 
   /**
@@ -143,9 +188,9 @@ export class Operator {
 
   /**
    * 出社・退社ボタンのセレクターを取得する。
-   * @param command 出社 or 退社
+   * @param command
    */
-  private getAttendanceSelector(command: "clockin" | "clockout") {
+  private getAttendanceSelector(command: AttendanceCommand) {
     return this.attendanceSelector[command];
   }
 }
