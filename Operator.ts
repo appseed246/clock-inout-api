@@ -22,6 +22,10 @@ interface RetryOption {
   pageClose?: boolean;
 }
 
+interface Error {
+  message: string;
+}
+
 export class Operator {
   // ログインページのURL
   private readonly LOGIN_PAGE_URL = "https://www1.shalom-house.jp/komon/";
@@ -41,6 +45,10 @@ export class Operator {
   // puppeteerによって生成
   private page: Page;
 
+  // 関数の実行結果
+  // エラー情報などを含む
+  private _error: Error;
+
   /**
    * コンストラクタ
    */
@@ -54,12 +62,17 @@ export class Operator {
    * @returns {boolean} ログインに成功した場合はtrue, それ以外はfalse
    */
   public async login(userID: string, password: string): Promise<boolean> {
-    return this.doRetry(
+    const result = await this.doRetry(
       async () => {
         await this.doLogin(userID, password);
       },
       { pageClose: true }
     );
+    if (!result) {
+      this.error = { message: "failed to login." };
+      return false;
+    }
+    return true;
   }
   /**
    * 指定したコンテンツにアクセスする
@@ -74,6 +87,7 @@ export class Operator {
       });
     } catch (e) {
       console.log(e);
+      this.error = { message: `failed to access content:${content}` };
       return false;
     }
     return true;
@@ -82,7 +96,14 @@ export class Operator {
    * 出社ボタンを押下する。
    */
   public async clockin(): Promise<boolean> {
-    if (!(await this.pushAttendanceButton("clockin"))) {
+    try {
+      if (!(await this.pushAttendanceButton("clockin"))) {
+        this.error = { message: "you already has been clockin." };
+        return false;
+      }
+    } catch (e) {
+      console.log(e);
+      this.error = { message: "failed to clockin." };
       return false;
     }
     return true;
@@ -91,9 +112,24 @@ export class Operator {
    * 退社ボタンを押下する。
    */
   public async clockout(): Promise<boolean> {
-    return this.pushAttendanceButton("clockout");
+    try {
+      if (!(await this.pushAttendanceButton("clockout"))) {
+        this.error = { message: "you already has been clockout." };
+        return false;
+      }
+    } catch (e) {
+      console.log(e);
+      this.error = { message: "failed to clockout." };
+      return false;
+    }
+    return true;
   }
 
+  /**
+   * ログイン処理
+   * @param userID ユーザID
+   * @param password パスワード
+   */
   private async doLogin(userID: string, password: string) {
     // 新しいページを生成し、ログインページに遷移する
     this.page = await this.browser.newPage();
@@ -151,7 +187,7 @@ export class Operator {
     const selector = this.getAttendanceSelector(command);
     const button = await this.page.$(selector);
     if (button == null) {
-      console.log(`failed to execute '${command}'`);
+      console.log(`'${command}' does not exist. maybe already push button.`);
       return false;
     }
 
@@ -192,5 +228,13 @@ export class Operator {
    */
   private getAttendanceSelector(command: AttendanceCommand) {
     return this.attendanceSelector[command];
+  }
+
+  public get error(): Error {
+    return this._error;
+  }
+
+  public set error(v: Error) {
+    this._error = v;
   }
 }
