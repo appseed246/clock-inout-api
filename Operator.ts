@@ -1,30 +1,5 @@
 import { Browser, Page, NavigationOptions } from "puppeteer-core";
-
-/**
- * ネットde顧問のコンテンツ
- * + paycheck: ネットde明細
- * + attendance: ネットde就業
- * + regulation: ネットde規則
- * + schedule: ネットdeスケジュール
- */
-type Content = "paycheck" | "attendance" | "regulation" | "schedule";
-
-/**
- * 勤怠画面で実行可能なコマンド
- * + clockin: 出勤ボタン押下
- * + clockout: 退勤ボタン押下
- */
-type AttendanceCommand = "clockin" | "clockout";
-
-interface RetryOption {
-  retryLimit?: number;
-  waitMilliSecond?: number;
-  pageClose?: boolean;
-}
-
-interface Error {
-  message: string;
-}
+import { Content, AttendanceCommand, Result, RetryOption } from "./Types";
 
 export class Operator {
   // ログインページのURL
@@ -47,7 +22,7 @@ export class Operator {
 
   // 関数の実行結果
   // エラー情報などを含む
-  private _error: Error;
+  private _error: Result = { status: "OK" };
 
   /**
    * コンストラクタ
@@ -69,7 +44,10 @@ export class Operator {
       { pageClose: true }
     );
     if (!result) {
-      this.error = { message: "failed to login." };
+      this.result = {
+        status: "NG",
+        message: "failed to login."
+      };
       return false;
     }
     return true;
@@ -87,7 +65,10 @@ export class Operator {
       });
     } catch (e) {
       console.log(e);
-      this.error = { message: `failed to access content:${content}` };
+      this.result = {
+        status: "NG",
+        message: `failed to access content:${content}`
+      };
       return false;
     }
     return true;
@@ -98,12 +79,18 @@ export class Operator {
   public async clockin(): Promise<boolean> {
     try {
       if (!(await this.pushAttendanceButton("clockin"))) {
-        this.error = { message: "you already has been clockin." };
-        return false;
+        this.result = {
+          status: "OK",
+          message: "you already has been clockin."
+        };
+        return true;
       }
     } catch (e) {
       console.log(e);
-      this.error = { message: "failed to clockin." };
+      this.result = {
+        status: "NG",
+        message: "failed to clockin."
+      };
       return false;
     }
     return true;
@@ -114,12 +101,18 @@ export class Operator {
   public async clockout(): Promise<boolean> {
     try {
       if (!(await this.pushAttendanceButton("clockout"))) {
-        this.error = { message: "you already has been clockout." };
-        return false;
+        this.result = {
+          status: "OK",
+          message: "you already has been clockout."
+        };
+        return true;
       }
     } catch (e) {
       console.log(e);
-      this.error = { message: "failed to clockout." };
+      this.result = {
+        status: "NG",
+        message: "failed to clockout."
+      };
       return false;
     }
     return true;
@@ -230,11 +223,11 @@ export class Operator {
     return this.attendanceSelector[command];
   }
 
-  public get error(): Error {
+  public get result(): Result {
     return this._error;
   }
 
-  public set error(v: Error) {
+  public set result(v: Result) {
     this._error = v;
   }
 }

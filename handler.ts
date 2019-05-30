@@ -6,7 +6,7 @@ import "source-map-support/register";
 import "reflect-metadata";
 import { sample } from "./sample";
 import { Operator } from "./Operator";
-import { executeClockOut } from "./Scenario";
+import { executeClockOut, executeClockIn } from "./Scenario";
 
 const userId = process.env.USERID;
 const password = process.env.PASSWORD;
@@ -25,18 +25,24 @@ export const hello: Handler = async () => {
   const result = await sample();
   return {
     statusCode: 200,
-    body: JSON.stringify({ result })
+    body: JSON.stringify(result)
   };
-
-  // Use this code if you don't use the http event with the LAMBDA-PROXY integration
-  // return { message: 'Go Serverless v1.0! Your function executed successfully!', event };
 };
 
 export const clockout: Handler = async () => {
   const operator = await getOperator();
-  const result = executeClockOut(operator, userId!, password!);
+  const result = await executeClockOut(operator, userId!, password!);
   return {
     statusCode: 200,
-    body: JSON.stringify({ result })
+    body: JSON.stringify(result)
+  };
+};
+
+export const clockin: Handler = async () => {
+  const operator = await getOperator();
+  const result = await executeClockIn(operator, userId!, password!);
+  return {
+    statusCode: 200,
+    body: JSON.stringify(result)
   };
 };
