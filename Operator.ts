@@ -1,5 +1,6 @@
 import { Browser, Page, NavigationOptions } from "puppeteer-core";
 import { Content, AttendanceCommand, Result, RetryOption } from "./Types";
+import { AttendaceSelector } from "./AttendanceSelector";
 
 export class Operator {
   // ログインページのURL
@@ -11,6 +12,8 @@ export class Operator {
     regulation: "#ctl00_ContentPlaceHolder1_imgBtnKisoku",
     schedule: "#ctl00_ContentPlaceHolder1_imgBtnGrp"
   };
+  private readonly statusSelector: string =
+    "#ctl00_ContentPlaceHolder1_lblNowinfo";
 
   private readonly attendanceSelector: { [key: string]: string } = {
     clockin: "#ctl00_ContentPlaceHolder1_ibtnIn4",
@@ -24,6 +27,7 @@ export class Operator {
   // エラー情報などを含む
   private _error: Result = { status: "OK" };
 
+  private selector: AttendaceSelector;
   /**
    * コンストラクタ
    */
@@ -112,6 +116,26 @@ export class Operator {
       this.result = {
         status: "NG",
         message: "failed to clockout."
+      };
+      return false;
+    }
+    return true;
+  }
+
+  public async fetchAttendanceStatus() {
+    try {
+      const selector = this.statusSelector;
+      const label = await this.page.$eval(selector, item => {
+        return item.textContent;
+      });
+      if (this.selector == null) {
+        this.selector = new AttendaceSelector(label);
+      }
+    } catch (e) {
+      console.log(e);
+      this.result = {
+        status: "NG",
+        message: `failed to access content`
       };
       return false;
     }

@@ -11,8 +11,10 @@ export type Content = "paycheck" | "attendance" | "regulation" | "schedule";
  * 勤怠画面で実行可能なコマンド
  * + clockin: 出勤ボタン押下
  * + clockout: 退勤ボタン押下
+ * + goout: 外出ボタン押下
+ * + return: 戻りボタン押下
  */
-export type AttendanceCommand = "clockin" | "clockout";
+export type AttendanceCommand = "clockin" | "clockout" | "goout" | "return";
 
 export interface RetryOption {
   retryLimit?: number;
@@ -31,3 +33,12 @@ type NGResult = {
 };
 
 export type Result = OKResult | NGResult;
+
+/**
+ * 出勤ステータス
+ * + before: 出勤前
+ * + working: 勤務中
+ * + out: 外出中
+ * + leave: 退社済み
+ */
+export type Status = "before" | "working" | "out" | "leave";
